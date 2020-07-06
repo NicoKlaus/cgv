@@ -2,7 +2,7 @@
 projectType="application_plugin";
 projectName="vr_cobotics";
 //referenceDeps = 0;
-projectGUID="8FFA22FA-141A-4BC8-8731-5D1A29BFD1E5";
+projectGUID="D4C8BB4D-D464-4D64-8390-131B0CE02732";
 addProjectDirs=[CGV_DIR."/plugins", CGV_DIR."/libs", CGV_DIR."/test"];
 addProjectDeps=["cgv_utils", "cgv_type", "cgv_data", "cgv_base", "cgv_math",
 				"cgv_media", "cgv_gui", "cgv_render", "cmi_io",
@@ -14,4 +14,4 @@ addIncDirs=[INPUT_DIR, CGV_DIR."/libs", CGV_DIR."/test"];
 addCommandLineArguments=[
 	after("type(shader_config):shader_path='".INPUT_DIR.";".CGV_DIR."/libs/cgv_gl/glsl'","cg_fltk"),	'config:"'.INPUT_DIR.'/config.def"'
 ];
-addSharedDefines=["VR_TEST_EXPORTS"];
+addSharedDefines=["VR_COBOTICS_EXPORTS"];

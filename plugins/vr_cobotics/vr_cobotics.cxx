@@ -5,13 +5,16 @@
 #include <cgv/math/ftransform.h>
 #include <cgv/utils/scan.h>
 #include <cgv/utils/options.h>
+#include <cgv/utils/file.h>
 #include <cgv/gui/dialog.h>
+#include <cgv/gui/file_dialog.h>
 #include <cgv/render/attribute_array_binding.h>
 #include <cgv_gl/sphere_renderer.h>
 #include <cgv/media/mesh/simple_mesh.h>
 #include <cg_vr/vr_events.h>
 
 #include <random>
+#include <sstream>
 
 #include "intersection.h"
 
@@ -227,7 +230,7 @@ void vr_cobotics::build_scene(float w, float d, float h, float W, float tw, floa
 	construct_table(tw, td, th, tW);
 	construct_environment(0.3f, 3 * w, 3 * d, w, d, h);
 	//construct_environment(0.4f, 0.5f, 1u, w, d, h);
-	construct_movable_boxes(tw, td, th, tW, 2000);
+	construct_movable_boxes(tw, td, th, tW, 20);
 }
 
 vr_cobotics::vr_cobotics() 
@@ -248,7 +251,7 @@ vr_cobotics::vr_cobotics()
 	camera_aspect = 1;
 	use_matrix = true;
 	show_seethrough = false;
-	set_name("vr_test");
+	set_name("vr_cobotics");
 	build_scene(5, 7, 3, 0.2f, 1.6f, 0.8f, 0.7f, 0.03f);
 	vr_view_ptr = 0;
 	ray_length = 2;
@@ -287,7 +290,7 @@ vr_cobotics::vr_cobotics()
 }
 	
 void vr_cobotics::stream_help(std::ostream& os) {
-	os << "vr_test: no shortcuts defined" << std::endl;
+	os << "vr_cobotics: no shortcuts defined" << std::endl;
 }
 	
 void vr_cobotics::on_set(void* member_ptr)
@@ -309,6 +312,13 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 	// check if vr event flag is not set and don't process events in this case
 	if ((e.get_flags() & cgv::gui::EF_VR) == 0)
 		return false;
+
+	// TODO record event
+	if (log_vr_events) {
+		e.stream_out(recorded_vr_events);
+		recorded_vr_events << "\n";
+	}
+
 	// check event id
 	switch (e.get_kind()) {
 	case cgv::gui::EID_KEY:
@@ -748,6 +758,21 @@ void vr_cobotics::draw(cgv::render::context& ctx)
 	}
 	cgv::render::box_renderer& renderer = cgv::render::ref_box_renderer(ctx);
 
+	// draw wireframe boxes
+	if (frame_boxes.size() > 0) { //pointing the renderer to uninitialized arrays causes assertions in debug mode
+		renderer.set_render_style(wire_frame_style);
+		renderer.set_box_array(ctx, frame_boxes);
+		renderer.set_color_array(ctx, frame_box_colors);
+		renderer.set_translation_array(ctx, frame_box_translations);
+		renderer.set_rotation_array(ctx, frame_box_rotations);
+		if (renderer.validate_and_enable(ctx)) {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			renderer.draw(ctx, 0, frame_boxes.size());
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+		renderer.disable(ctx);
+	}
+
 	// draw dynamic boxes 
 	renderer.set_render_style(movable_style);
 	renderer.set_box_array(ctx, movable_boxes);
@@ -847,8 +872,9 @@ void vr_cobotics::finish_draw(cgv::render::context& ctx)
 	}
 }
 
-					0.2f*distribution(generator)+0.1f));void vr_cobotics::create_gui() {
-	add_decorator("vr_test", "heading", "level=2");
+					//0.2f*distribution(generator)+0.1f));
+void vr_cobotics::create_gui() {
+	add_decorator("vr_cobotics", "heading", "level=2");
 	add_member_control(this, "mesh_scale", mesh_scale, "value_slider", "min=0.1;max=10;log=true;ticks=true");
 	add_gui("mesh_location", mesh_location, "vector", "options='min=-3;max=3;ticks=true");
 	add_gui("mesh_orientation", static_cast<dvec4&>(mesh_orientation), "direction", "options='min=-1;max=1;ticks=true");
@@ -895,6 +921,19 @@ void vr_cobotics::finish_draw(cgv::render::context& ctx)
 			add_member_control(this, prefix + ".deadzone", left_deadzone_and_precision[i].first, "value_slider", "min=0;max=1;ticks=true;log=true");
 			add_member_control(this, prefix + ".precision", left_deadzone_and_precision[i].second, "value_slider", "min=0;max=1;ticks=true;log=true");
 		}
+	}
+	if (begin_tree_node("movable boxes", 1.f)) {
+		align("\a");
+		connect_copy(add_button("save boxes")->click, rebind(this, &vr_cobotics::on_save_movable_boxes_cb));
+		connect_copy(add_button("load boxes")->click, rebind(this, &vr_cobotics::on_load_movable_boxes_cb));
+		connect_copy(add_button("load target")->click, rebind(this, &vr_cobotics::on_load_wireframe_boxes_cb));
+		align("\b");
+	}
+	if (begin_tree_node("VR events", 1.f)) {
+		align("\a");
+		add_member_control(this, "log vr events", log_vr_events, "check");
+		//connect_copy(add_button("select protocol file")->click, rebind(this, &vr_cobotics::on_set_vr_event_streaming_target));
+		align("\b");
 	}
 	if (begin_tree_node("box style", style)) {
 		align("\a");
@@ -943,6 +982,139 @@ void vr_cobotics::finish_draw(cgv::render::context& ctx)
 	}
 }
 
+bool vr_cobotics::save_boxes(const std::string fn, const std::vector<box3>& boxes, const std::vector<rgb>& box_colors, const std::vector<vec3>& box_translations, const std::vector<quat>& box_rotations)
+{
+	std::stringstream data;
+
+
+	if (boxes.size() != box_colors.size() || boxes.size() != box_translations.size() || boxes.size() != box_rotations.size()) {
+		std::cerr << "vr_cobotics::save_boxes: passed vectors have different sizes!";
+		return false;
+	}
+
+	for (int i = 0; i < movable_boxes.size(); ++i) {
+		//format: BOX <box.min_p> <box.max_p> <trans> <rot> <col>
+		const vec3& box_translation = box_translations[i];
+		const quat& box_rotation = box_rotations[i];
+		const rgb& box_color = box_colors[i];
+		data << "BOX "
+			<< boxes[i].get_min_pnt() << " "
+			<< boxes[i].get_max_pnt() << " "
+			<< box_translation << " "
+			<< box_rotation << " "
+			<< box_color << " "
+			<< '\n';
+	}
+	std::string s = data.str();
+	if (!cgv::utils::file::write(fn, s.data(), s.size())) {
+		std::cerr << "vr_cobotics::save_boxes: failed writing data to file: " << fn;
+	}
+	return true;
+}
+
+bool vr_cobotics::load_boxes(const std::string fn, std::vector<box3>& boxes, std::vector<rgb>& box_colors, std::vector<vec3>& box_translations, std::vector<quat>& box_rotations)
+{
+	std::string data;
+	if (!cgv::utils::file::read(fn, data)) {
+		std::cerr << "vr_cobotics::load_boxes: failed reading data from file: " << fn << '\n';
+		return false;
+	}
+	std::istringstream f(data);
+	std::string line;
+
+	while (!f.eof()) {
+		std::getline(f, line); 	//read a line
+		std::istringstream l(line);
+		std::string sym;
+		
+		int limit=1;
+		bool valid = true;
+		if (!l.eof()) {
+			getline(l, sym, ' '); //get the first symbol determing the type
+			if (sym == "BOX") { //in case of a box
+				vec3 minp,maxp,trans;
+				quat rot;
+				rgb col;
+				l >> minp;
+				l >> maxp;
+				l >> trans;
+				l >> rot;
+				l >> col;
+				
+				boxes.emplace_back(minp, maxp);
+				box_translations.emplace_back(trans);
+				box_rotations.emplace_back(rot);
+				box_colors.emplace_back(col);
+			}
+		}
+	}
+	return true;
+}
+
+void vr_cobotics::on_save_movable_boxes_cb()
+{
+	std::string fn = cgv::gui::file_save_dialog("base file name", "Box configurations(txt):*.txt");
+	if (fn.empty())
+		return;
+	
+	save_boxes(fn, movable_boxes, movable_box_colors, movable_box_translations, movable_box_rotations);
+}
+
+void vr_cobotics::on_load_movable_boxes_cb()
+{
+	std::string fn = cgv::gui::file_open_dialog("base file name", "Box configurations(txt):*.txt");
+	if (!cgv::utils::file::exists(fn)) {
+		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: file does not exist!\n";
+		return;
+	}
+	clear_movable_boxes();
+	if (!load_boxes(fn, movable_boxes, movable_box_colors, movable_box_translations, movable_box_rotations)) {
+		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: failed to parse file!\n";
+		clear_movable_boxes(); //delete all boxes after a failure to reach a valid logical state
+	}
+}
+
+void vr_cobotics::on_load_wireframe_boxes_cb()
+{
+	std::string fn = cgv::gui::file_open_dialog("base file name", "Box configurations(txt):*.txt");
+	if (!cgv::utils::file::exists(fn)) {
+		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: file does not exist!\n";
+		return;
+	}
+	clear_frame_boxes();
+	if (!load_boxes(fn, frame_boxes, frame_box_colors, frame_box_translations, frame_box_rotations)) {
+		std::cerr << "vr_cobotics::on_load_wireframe_boxes_cb: failed to parse file!\n";
+		clear_frame_boxes(); //delete all boxes after a failure to reach a valid logical state
+	}
+}
+
+void vr_cobotics::on_set_vr_event_streaming_target()
+{
+	std::string fn = cgv::gui::file_open_dialog("base file name", "VR Events(txt):*.txt");
+	if (!cgv::utils::file::exists(fn)) {
+		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: file does not exist!\n";
+		return;
+	}
+	if (fn.empty())
+		return;
+}
+
+void vr_cobotics::clear_movable_boxes()
+{
+	movable_boxes.clear();
+	movable_box_translations.clear();
+	movable_box_rotations.clear();
+	movable_box_colors.clear();
+}
+
+void vr_cobotics::clear_frame_boxes()
+{
+	frame_boxes.clear();
+	frame_box_translations.clear();
+	frame_box_rotations.clear();
+	frame_box_colors.clear();
+}
+
 #include <cgv/base/register.h>
 
-cgv::base::object_registration<vr_cobotics> vr_test_reg("vr_test");
+cgv::base::object_registration<vr_cobotics> vr_cobotics_reg("vr_cobotics");

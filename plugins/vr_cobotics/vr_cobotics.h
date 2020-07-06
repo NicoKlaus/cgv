@@ -8,6 +8,7 @@
 #include <cgv/render/shader_program.h>
 #include <cgv_gl/rounded_cone_renderer.h>
 #include <cgv/render/frame_buffer.h>
+#include <deque>
 
 ///@ingroup VR
 ///@{
@@ -83,11 +84,22 @@ protected:
 	// keep reference to vr_view_interactor
 	vr_view_interactor* vr_view_ptr;
 
+	// record of the vr_events
+	std::stringstream recorded_vr_events;
+	std::string vr_events_fn;
+	bool log_vr_events;
+
 	// store the movable boxes
 	std::vector<box3> movable_boxes;
 	std::vector<rgb> movable_box_colors;
 	std::vector<vec3> movable_box_translations;
 	std::vector<quat> movable_box_rotations;
+
+	// store the wireframe boxes
+	std::vector<box3> frame_boxes;
+	std::vector<rgb> frame_box_colors;
+	std::vector<vec3> frame_box_translations;
+	std::vector<quat> frame_box_rotations;
 
 	// intersection points
 	std::vector<vec3> intersection_points;
@@ -101,6 +113,7 @@ protected:
 	// render style for interaction
 	cgv::render::sphere_render_style srs;
 	cgv::render::box_render_style movable_style;
+	cgv::render::box_render_style wire_frame_style;
 
 	int nr_cameras;
 	int frame_width, frame_height;
@@ -168,6 +181,25 @@ public:
 	void finish_draw(cgv::render::context& ctx);
 
 	void create_gui();
+
+	//! stores configuration of the movable boxes inside a file
+	/*! stores configuration of the movable boxes inside a file. All passed vectors in the arguments are reqired to have the same number of elements.
+		@param fn : file for writing the configuration */
+	bool save_boxes(const std::string fn, const std::vector<box3>& boxes, const std::vector<rgb>& box_colors, const std::vector<vec3>& box_translations, const std::vector<quat>& box_rotations);
+	
+	//! loads boxes stored by the save_boxes method from a file
+	/*! loads boxes stored by the save_boxes method. This method will append the box information from the file to the vectors given by the arguments.*/
+	bool load_boxes(const std::string fn, std::vector<box3>& boxes, std::vector<rgb>& box_colors, std::vector<vec3>& box_translations, std::vector<quat>& box_rotations);
+
+	protected:
+
+	void on_save_movable_boxes_cb();
+	void on_load_movable_boxes_cb();
+	void on_load_wireframe_boxes_cb();
+	void clear_movable_boxes();
+	void clear_frame_boxes();
+	void on_set_vr_event_streaming_target();
+
 };
 
 ///@}
