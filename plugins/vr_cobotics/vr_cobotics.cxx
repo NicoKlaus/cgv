@@ -932,7 +932,8 @@ void vr_cobotics::create_gui() {
 	if (begin_tree_node("VR events", 1.f)) {
 		align("\a");
 		add_member_control(this, "log vr events", log_vr_events, "check");
-		//connect_copy(add_button("select protocol file")->click, rebind(this, &vr_cobotics::on_set_vr_event_streaming_target));
+		connect_copy(add_button("select protocol file")->click, rebind(this, &vr_cobotics::on_set_vr_event_streaming_file));
+		add_view("protocol file", vr_events_record_path);
 		align("\b");
 	}
 	if (begin_tree_node("box style", style)) {
@@ -980,6 +981,11 @@ void vr_cobotics::create_gui() {
 		align("\b");
 		end_tree_node(label_size);
 	}
+}
+
+bool vr_cobotics::self_reflect(cgv::reflect::reflection_handler & rh)
+{
+	return rh.reflect_member("vr_events_record_path", vr_events_record_path);
 }
 
 bool vr_cobotics::save_boxes(const std::string fn, const std::vector<box3>& boxes, const std::vector<rgb>& box_colors, const std::vector<vec3>& box_translations, const std::vector<quat>& box_rotations)
@@ -1088,15 +1094,13 @@ void vr_cobotics::on_load_wireframe_boxes_cb()
 	}
 }
 
-void vr_cobotics::on_set_vr_event_streaming_target()
+void vr_cobotics::on_set_vr_event_streaming_file()
 {
-	std::string fn = cgv::gui::file_open_dialog("base file name", "VR Events(txt):*.txt");
-	if (!cgv::utils::file::exists(fn)) {
-		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: file does not exist!\n";
-		return;
-	}
+	std::string fn = cgv::gui::file_save_dialog("base file name", "VR Events(txt):*.txt");
 	if (fn.empty())
 		return;
+	vr_events_record_path = fn;
+	post_recreate_gui();
 }
 
 void vr_cobotics::clear_movable_boxes()

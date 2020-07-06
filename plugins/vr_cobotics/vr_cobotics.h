@@ -8,7 +8,7 @@
 #include <cgv/render/shader_program.h>
 #include <cgv_gl/rounded_cone_renderer.h>
 #include <cgv/render/frame_buffer.h>
-#include <deque>
+#include <fstream>
 
 ///@ingroup VR
 ///@{
@@ -86,7 +86,8 @@ protected:
 
 	// record of the vr_events
 	std::stringstream recorded_vr_events;
-	std::string vr_events_fn;
+	std::ofstream vr_event_stream;
+	std::string vr_events_record_path;
 	bool log_vr_events;
 
 	// store the movable boxes
@@ -182,6 +183,8 @@ public:
 
 	void create_gui();
 
+	bool self_reflect(cgv::reflect::reflection_handler& rh);
+
 	//! stores configuration of the movable boxes inside a file
 	/*! stores configuration of the movable boxes inside a file. All passed vectors in the arguments are reqired to have the same number of elements.
 		@param fn : file for writing the configuration */
@@ -198,7 +201,7 @@ public:
 	void on_load_wireframe_boxes_cb();
 	void clear_movable_boxes();
 	void clear_frame_boxes();
-	void on_set_vr_event_streaming_target();
+	void on_set_vr_event_streaming_file();
 
 };
 
