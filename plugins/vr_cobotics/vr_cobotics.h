@@ -9,6 +9,8 @@
 #include <cgv_gl/rounded_cone_renderer.h>
 #include <cgv/render/frame_buffer.h>
 #include <fstream>
+#include <memory>
+#include <chrono>
 
 ///@ingroup VR
 ///@{
@@ -85,10 +87,10 @@ protected:
 	vr_view_interactor* vr_view_ptr;
 
 	// record of the vr_events
-	std::stringstream recorded_vr_events;
-	std::ofstream vr_event_stream;
+	std::shared_ptr<std::ofstream> vr_events_stream;
 	std::string vr_events_record_path;
 	bool log_vr_events;
+	std::chrono::time_point<std::chrono::steady_clock> vrr_t_start; //time since start of recording
 
 	// store the movable boxes
 	std::vector<box3> movable_boxes;

@@ -264,6 +264,8 @@ vr_cobotics::vr_cobotics()
 
 	srs.radius = 0.005f;
 
+	vr_events_stream = nullptr;
+
 	label_outofdate = true;
 	label_text = "Info Board";
 	label_font_idx = 0;
@@ -303,6 +305,16 @@ void vr_cobotics::on_set(void* member_ptr)
 		member_ptr == &label_size || member_ptr == &label_text) {
 		label_outofdate = true;
 	}
+	if (member_ptr == &log_vr_events && vr_events_stream) {
+		if (!log_vr_events) { //close file
+			vr_events_stream->close();
+			vr_events_stream = nullptr;
+			vr_events_record_path = "";
+		}
+		else { //start timer
+			vrr_t_start = std::chrono::steady_clock::now();
+		}
+	}
 	update_member(member_ptr);
 	post_redraw();
 }
@@ -314,9 +326,12 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 		return false;
 
 	// TODO record event
-	if (log_vr_events) {
-		e.stream_out(recorded_vr_events);
-		recorded_vr_events << "\n";
+	if (log_vr_events && vr_events_stream) {
+		auto now = std::chrono::steady_clock::now();
+		double t = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - vrr_t_start).count()) / 1e6;
+		*vr_events_stream << t << " \"";
+		e.stream_out(*vr_events_stream);
+		*vr_events_stream << "\"\n";
 	}
 
 	// check event id
@@ -931,7 +946,7 @@ void vr_cobotics::create_gui() {
 	}
 	if (begin_tree_node("VR events", 1.f)) {
 		align("\a");
-		add_member_control(this, "log vr events", log_vr_events, "check");
+		add_member_control(this, "log vr events", log_vr_events, "toggle");
 		connect_copy(add_button("select protocol file")->click, rebind(this, &vr_cobotics::on_set_vr_event_streaming_file));
 		add_view("protocol file", vr_events_record_path);
 		align("\b");
@@ -1096,10 +1111,16 @@ void vr_cobotics::on_load_wireframe_boxes_cb()
 
 void vr_cobotics::on_set_vr_event_streaming_file()
 {
-	std::string fn = cgv::gui::file_save_dialog("base file name", "VR Events(txt):*.txt");
+	std::string fn = cgv::gui::file_save_dialog("base file name", "VR-Conntroller Record(.vrcr):*.vrcr"); //VR-Conntroller Record
 	if (fn.empty())
 		return;
 	vr_events_record_path = fn;
+
+	vr_events_stream = std::make_shared<std::ofstream>(fn);
+	if (!vr_events_stream->good()) {
+		std::cerr << "vr_cobotics::on_set_vr_event_streaming_file: can't write file!\n";
+		vr_events_stream = nullptr;
+	}
 	post_recreate_gui();
 }
 
