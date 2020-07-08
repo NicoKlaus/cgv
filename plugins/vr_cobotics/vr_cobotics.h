@@ -93,6 +93,12 @@ protected:
 	std::chrono::time_point<std::chrono::steady_clock> vrr_t_start; //time since start of recording
 
 	// store the movable boxes
+	bool allow_new_boxes;
+	float new_box_distance;
+	int new_box_index;
+	int new_box_selected_axis;
+	cgv::math::fvec<int,3> new_box_extents;
+	float new_box_step;
 	std::vector<box3> movable_boxes;
 	std::vector<rgb> movable_box_colors;
 	std::vector<vec3> movable_box_translations;
@@ -197,6 +203,8 @@ public:
 	bool load_boxes(const std::string fn, std::vector<box3>& boxes, std::vector<rgb>& box_colors, std::vector<vec3>& box_translations, std::vector<quat>& box_rotations);
 
 	protected:
+
+	void resize_box(int box_index, vec3 extends);
 
 	void on_save_movable_boxes_cb();
 	void on_load_movable_boxes_cb();
