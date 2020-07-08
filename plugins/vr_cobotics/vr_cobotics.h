@@ -92,13 +92,13 @@ protected:
 	bool log_vr_events;
 	std::chrono::time_point<std::chrono::steady_clock> vrr_t_start; //time since start of recording
 
-	// store the movable boxes
-	bool allow_new_boxes;
+	//settings for live editing boxes
+	bool box_edit_mode;
 	float new_box_distance;
-	int new_box_index;
-	int new_box_selected_axis;
-	cgv::math::fvec<int,3> new_box_extents;
-	float new_box_step;
+	cgv::math::fvec<float,3> new_box_extents;
+	float edit_box_step;
+	int edit_box_selected_axis;
+	// store the movable boxes
 	std::vector<box3> movable_boxes;
 	std::vector<rgb> movable_box_colors;
 	std::vector<vec3> movable_box_translations;
