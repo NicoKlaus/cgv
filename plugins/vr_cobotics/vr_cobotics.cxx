@@ -346,11 +346,8 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 		cgv::gui::vr_key_event& vrke = static_cast<cgv::gui::vr_key_event&>(e);
 		if (vrke.get_action() != cgv::gui::KA_RELEASE) {
 			switch (vrke.get_key()) {
-			case vr::VR_LEFT_BUTTON0:
-				std::cout << "button 0 of left controller pressed" << std::endl;
-				return true;
 			case vr::VR_LEFT_BUTTON1:
-				std::cout << "button 0 of left controller pressed" << std::endl;
+				std::cout << "button 1 of left controller pressed" << std::endl;
 			case vr::VR_RIGHT_BUTTON1:
 			if (box_edit_mode){
 				//create a new box
@@ -373,9 +370,41 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 				}
 				return true;
 			}
-			case vr::VR_RIGHT_STICK_UP:
+			case vr::VR_LEFT_BUTTON2:
+				std::cout << "button 2 of left controller pressed" << std::endl;
+			case vr::VR_RIGHT_BUTTON2:
+				return true;
+			case vr::VR_LEFT_BUTTON3:
+				std::cout << "button 3 of left controller pressed" << std::endl;
+			case vr::VR_RIGHT_BUTTON3:
+				return true;
 			case vr::VR_LEFT_STICK_UP:
+				std::cout << "touch pad of right controller pressed at up direction" << std::endl;
+			case vr::VR_RIGHT_STICK_UP:
 			{
+				return true;
+			}
+			case vr::VR_LEFT_STICK_DOWN:
+				std::cout << "touch pad of left controller pressed at down direction" << std::endl;
+			case vr::VR_RIGHT_STICK_DOWN:
+			{
+				return true;
+			}
+			case vr::VR_LEFT_STICK_LEFT:
+				std::cout << "touch pad of left controller pressed at left direction" << std::endl;
+			case vr::VR_RIGHT_STICK_LEFT:
+				return true;
+			case vr::VR_RIGHT_STICK_RIGHT:
+			case vr::VR_LEFT_STICK_RIGHT:
+				return true;
+			}
+		}
+		else {
+			switch (vrke.get_key()) {
+			case vr::VR_LEFT_BUTTON0:
+				std::cout << "button 0 of left controller released" << std::endl;
+			case vr::VR_RIGHT_BUTTON0:
+				//change box extents
 				int ci = vrke.get_controller_index();
 				if (box_edit_mode && state[ci] == IS_GRAB) {
 					// iterate intersection points of current controller
@@ -388,36 +417,9 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 						box3 b = movable_boxes[bi];
 						float extent = b.get_max_pnt()[axis] - b.get_min_pnt()[axis];
 						float center = b.get_center()[axis];
-						//float r = fmodf(extent, edit_box_step);
-						float new_extent = extent + edit_box_step;
-						movable_boxes[bi].ref_max_pnt()[axis] = center + new_extent * 0.5f;
-						movable_boxes[bi].ref_min_pnt()[axis] = center - new_extent * 0.5f;
-						// update intersection points
-						//intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
-						break; //change only the first box
-					}
-					post_redraw();
-				}
-				std::cout << "touch pad of right controller pressed at right direction" << std::endl;
-				return true;
-			}
-			case vr::VR_RIGHT_STICK_DOWN:
-			case vr::VR_LEFT_STICK_DOWN:
-			{
-				int ci = vrke.get_controller_index();
-				if (box_edit_mode && state[ci] == IS_GRAB) {
-					// iterate intersection points of current controller
-					for (size_t i = 0; i < intersection_points.size(); ++i) {
-						if (intersection_controller_indices[i] != ci)
-							continue;
-						// extract box index
-						int bi = intersection_box_indices[i];
-						int axis = edit_box_selected_axis;
-						box3 b = movable_boxes[bi];
-						float extent = b.get_max_pnt()[axis] - b.get_min_pnt()[axis],edit_box_step;
-						float center = b.get_center()[axis];
-						//float r = fmodf(extent, edit_box_step);
-						float new_extent = std::max(extent - edit_box_step,edit_box_step);
+
+						const float size_limit = 0.5;
+						float new_extent = std::max(std::fmod(extent + edit_box_step,size_limit), edit_box_step);
 						movable_boxes[bi].ref_max_pnt()[axis] = center + new_extent * 0.5f;
 						movable_boxes[bi].ref_min_pnt()[axis] = center - new_extent * 0.5f;
 						// update intersection points
@@ -427,13 +429,6 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					post_redraw();
 				}
 				return true;
-			}
-			case vr::VR_RIGHT_STICK_LEFT:
-				std::cout << "touch pad of right controller pressed at left direction" << std::endl;
-			case vr::VR_LEFT_STICK_LEFT:
-				return true;
-			case vr::VR_RIGHT_STICK_RIGHT:
-			case vr::VR_LEFT_STICK_RIGHT:
 				return true;
 			}
 		}
