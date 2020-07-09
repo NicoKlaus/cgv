@@ -266,9 +266,11 @@ vr_cobotics::vr_cobotics()
 
 	vr_events_stream = nullptr;
 	box_edit_mode = true;
-	new_box_extents = vec3(1.f, 1.f, 1.f);
+	new_box = box3(vec3(-0.05f), vec3(0.05f));
+	new_box_color = rgb(88.f / 255.f, 24.f / 255.f, 69.f / 255.f);
 	edit_box_selected_axis = 0;
-	edit_box_step = 0.05f;
+	edit_box_step = 0.025f;
+	edit_box_max_size = 0.2f;
 	new_box_distance = 0.35f;
 
 	label_outofdate = true;
@@ -356,13 +358,10 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					const vec3 up = vec3(0.f, 1.f, 0.f);
 					vec3 origin, direction;
 					vrke.get_state().controller[ci].put_ray(&origin(0), &direction(0));
-					vec3 box_extends = vec3(new_box_extents.x(), new_box_extents.y(), new_box_extents.z());
-					vec3 minp = -(box_extends * 0.5f);
-					vec3 maxp = (box_extends * 0.5f);
-					movable_box_colors.emplace_back(0.9f, 0.1f, 0.1f);
+					movable_box_colors.emplace_back(new_box_color);
 					movable_box_rotations.emplace_back(quat(cross(up, direction), acos(dot(up, direction))));
 					movable_box_translations.emplace_back(origin + direction * new_box_distance);
-					movable_boxes.emplace_back(minp, maxp);
+					movable_boxes.emplace_back(new_box);
 					post_redraw();
 				}
 				else if (state[ci] == IS_GRAB) {
@@ -377,7 +376,25 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			case vr::VR_LEFT_BUTTON3:
 				std::cout << "button 3 of left controller pressed" << std::endl;
 			case vr::VR_RIGHT_BUTTON3:
+			{
+				//set grabed box as template for new boxes
+				int ci = vrke.get_controller_index();
+				if (box_edit_mode && state[ci] == IS_GRAB) {
+					// iterate intersection points of current controller
+					for (size_t i = 0; i < intersection_points.size(); ++i) {
+						if (intersection_controller_indices[i] != ci)
+							continue;
+						// extract box index
+						int bi = intersection_box_indices[i];
+						int axis = edit_box_selected_axis;
+						new_box = movable_boxes[bi];
+						new_box_color = movable_box_colors[bi];
+						break; //get only the first box
+					}
+					post_redraw();
+				}
 				return true;
+			}
 			case vr::VR_LEFT_STICK_UP:
 				std::cout << "touch pad of right controller pressed at up direction" << std::endl;
 			case vr::VR_RIGHT_STICK_UP:
@@ -1025,7 +1042,9 @@ void vr_cobotics::create_gui() {
 		connect_copy(add_button("save boxes")->click, rebind(this, &vr_cobotics::on_save_movable_boxes_cb));
 		connect_copy(add_button("load boxes")->click, rebind(this, &vr_cobotics::on_load_movable_boxes_cb));
 		connect_copy(add_button("load target")->click, rebind(this, &vr_cobotics::on_load_wireframe_boxes_cb));
-		add_member_control(this, "allow creating new boxes", box_edit_mode, "toggle");
+		add_member_control(this, "allow editing/creating boxes", box_edit_mode, "toggle");
+		add_member_control(this, "max. box size", edit_box_max_size, "value_slider", "min=0;max=1;ticks=true");
+		add_member_control(this, "edit step ize", edit_box_step, "value_slider", "min=0;max=1;ticks=true");
 		align("\b");
 	}
 	if (begin_tree_node("VR events", 1.f)) {

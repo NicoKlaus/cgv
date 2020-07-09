@@ -94,10 +94,14 @@ protected:
 
 	//settings for live editing boxes
 	bool box_edit_mode;
+	box3 new_box;
 	float new_box_distance;
-	cgv::math::fvec<float,3> new_box_extents;
+	rgb new_box_color;
+	//cgv::math::fvec<float,3> new_box_extents;
 	float edit_box_step;
+	float edit_box_max_size;
 	int edit_box_selected_axis;
+
 	// store the movable boxes
 	std::vector<box3> movable_boxes;
 	std::vector<rgb> movable_box_colors;
