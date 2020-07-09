@@ -379,7 +379,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			{
 				//set grabed box as template for new boxes
 				int ci = vrke.get_controller_index();
-				if (box_edit_mode && state[ci] == IS_GRAB) {
+				if (box_edit_mode && (state[ci] == IS_OVER || state[ci] == IS_GRAB)) {
 					// iterate intersection points of current controller
 					for (size_t i = 0; i < intersection_points.size(); ++i) {
 						if (intersection_controller_indices[i] != ci)
@@ -389,6 +389,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 						int axis = edit_box_selected_axis;
 						new_box = movable_boxes[bi];
 						new_box_color = movable_box_colors[bi];
+						label_outofdate = true;
 						break; //get only the first box
 					}
 					post_redraw();
@@ -445,7 +446,6 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					}
 					post_redraw();
 				}
-				return true;
 				return true;
 			}
 		}
@@ -644,6 +644,14 @@ void vr_cobotics::init_frame(cgv::render::context& ctx)
 			ctx.output_stream().flush(); // make sure to flush the stream before change of font size or font face
 
 			ctx.enable_font_face(label_font_face, 0.7f*label_size);
+			
+			if (box_edit_mode) {
+				const char axis[] = "XYZ";
+				ctx.output_stream() << "new box[B1] \nextent=" << new_box.get_extent() << "\ncolor=" << new_box_color << '\n';
+				ctx.output_stream() << "selected extent axis[GRAB + B1] "<< axis[edit_box_selected_axis] << '\n';
+				ctx.output_stream() << "set as new box template[B4]\n";
+			}
+			
 			for (size_t i = 0; i < intersection_points.size(); ++i) {
 				ctx.output_stream()
 					<< "box " << intersection_box_indices[i]
