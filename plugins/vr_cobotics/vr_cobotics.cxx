@@ -24,6 +24,13 @@ double time_stamp(const T& t_start) {
 	return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - t_start).count()) / 1e6;
 }
 
+bool hasEnding(std::string const &str, std::string const &ending) {
+	if (str.length() >= ending.length()) {
+		return str.compare(str.length() - ending.length(), ending.length(), ending) == 0;
+	}
+	return false;
+}
+
 void vr_cobotics::init_cameras(vr::vr_kit* kit_ptr)
 {
 	vr::vr_camera* camera_ptr = kit_ptr->get_camera();
@@ -1081,7 +1088,7 @@ void vr_cobotics::create_gui() {
 			add_member_control(this, prefix + ".precision", left_deadzone_and_precision[i].second, "value_slider", "min=0;max=1;ticks=true;log=true");
 		}
 	}
-	if (begin_tree_node("movable boxes", 1.f)) {
+	if (begin_tree_node("movable boxes", box_edit_mode)) {
 		align("\a");
 		connect_copy(add_button("save boxes")->click, rebind(this, &vr_cobotics::on_save_movable_boxes_cb));
 		connect_copy(add_button("load boxes")->click, rebind(this, &vr_cobotics::on_load_movable_boxes_cb));
@@ -1089,13 +1096,15 @@ void vr_cobotics::create_gui() {
 		add_member_control(this, "allow editing/creating boxes", box_edit_mode, "toggle");
 		add_member_control(this, "max. box size", edit_box_max_size, "value_slider", "min=0;max=1;ticks=true");
 		add_member_control(this, "edit step ize", edit_box_step, "value_slider", "min=0;max=1;ticks=true");
+		end_tree_node(box_edit_mode);
 		align("\b");
 	}
-	if (begin_tree_node("VR events", 1.f)) {
+	if (begin_tree_node("VR events", log_vr_events)) {
 		align("\a");
 		add_member_control(this, "log vr events", log_vr_events, "toggle");
 		connect_copy(add_button("select protocol file")->click, rebind(this, &vr_cobotics::on_set_vr_event_streaming_file));
 		add_view("protocol file", vr_events_record_path);
+		end_tree_node(log_vr_events);
 		align("\b");
 	}
 	if (begin_tree_node("box style", style)) {
@@ -1230,7 +1239,11 @@ void vr_cobotics::resize_box(int box_index, vec3 extends)
 
 void vr_cobotics::on_save_movable_boxes_cb()
 {
-	std::string fn = cgv::gui::file_save_dialog("base file name", "Box configurations(txt):*.txt");
+	const std::string file_ending = ".vrboxes";
+	std::string fn = cgv::gui::file_save_dialog("base file name", "Box configurations(vrboxes):*.vrboxes");
+	if (!hasEnding(fn, file_ending)) {
+		fn.append(file_ending);
+	}
 	if (fn.empty())
 		return;
 	
@@ -1239,7 +1252,7 @@ void vr_cobotics::on_save_movable_boxes_cb()
 
 void vr_cobotics::on_load_movable_boxes_cb()
 {
-	std::string fn = cgv::gui::file_open_dialog("base file name", "Box configurations(txt):*.txt");
+	std::string fn = cgv::gui::file_open_dialog("base file name", "Box configurations(vrboxes):*.vrboxes");
 	if (!cgv::utils::file::exists(fn)) {
 		std::cerr << "vr_cobotics::on_load_movable_boxes_cb: file does not exist!\n";
 		return;
