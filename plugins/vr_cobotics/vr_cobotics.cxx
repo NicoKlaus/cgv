@@ -271,6 +271,7 @@ vr_cobotics::vr_cobotics()
 
 	vr_events_stream = nullptr;
 	box_trajectory_stream = nullptr;
+	controller_trajectory_stream = nullptr;
 	box_edit_mode = true;
 	for (auto& a : grab_number) a = 0;
 	new_box = box3(vec3(-0.05f), vec3(0.05f));
@@ -322,7 +323,11 @@ void vr_cobotics::on_set(void* member_ptr)
 	if (member_ptr == &log_vr_events && vr_events_stream) {
 		if (!log_vr_events) { //close file
 			vr_events_stream->close();
+			box_trajectory_stream->close();
+			controller_trajectory_stream->close();
 			vr_events_stream = nullptr;
+			box_trajectory_stream = nullptr;
+			controller_trajectory_stream = nullptr;
 			vr_events_record_path = "";
 		}
 		else { //start timer
@@ -532,8 +537,14 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
 
 					if (log_vr_events && box_trajectory_stream) {
-						//<box-index> <grab-id> <controller-id> <box-translation> <box-rotation>
-						*box_trajectory_stream << bi << " " << grab_number[ci] << " " << ci << " " << movable_box_rotations[bi] << " " << movable_box_translations[bi] << '\n';
+						//<box-index> <controller-id> <grab-id> <box-translation> <box-rotation>
+						*box_trajectory_stream
+							<< ci << " "
+							<< grab_number[ci] << " "
+							<< time_stamp(vrr_t_start) << " "
+							<< bi << " "
+							<< movable_box_translations[bi] << " "
+							<< movable_box_rotations[bi] << '\n';
 					}
 				}
 			}
@@ -565,6 +576,16 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 				else
 					if (state[ci] == IS_NONE)
 						state[ci] = IS_OVER;
+			}
+			//log controller trajectory
+			if (log_vr_events && controller_trajectory_stream) {
+				mat3 rotation = vrpe.get_rotation_matrix();
+				*controller_trajectory_stream
+					<< ci << " "
+					<< ((state[ci] == IS_GRAB) ? grab_number[ci] : -1) << " "
+					<< time_stamp(vrr_t_start) << " "
+					<< vrpe.get_position() << " "
+					<< quat(vrpe.get_orientation()) << '\n';
 			}
 			post_redraw();
 		}
@@ -1253,6 +1274,7 @@ void vr_cobotics::on_set_vr_event_streaming_file()
 
 	vr_events_stream = std::make_shared<std::ofstream>(fn+".vrcr"); //VR Conntroller Record(.vrcr) :*.vrcr
 	box_trajectory_stream = std::make_shared<std::ofstream>(fn + ".btrj"); //Block trajectory : *.btrj
+	controller_trajectory_stream = std::make_shared<std::ofstream>(fn + ".ctrj"); //controller trajectory : *.ctrj
 	if (!vr_events_stream->good()) {
 		std::cerr << "vr_cobotics::on_set_vr_event_streaming_file: can't write file!\n";
 		vr_events_stream = nullptr;

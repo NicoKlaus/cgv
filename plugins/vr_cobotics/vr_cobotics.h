@@ -87,11 +87,10 @@ protected:
 	vr_view_interactor* vr_view_ptr;
 
 	// record of the vr_events
-	std::shared_ptr<std::ofstream> vr_events_stream;
-	std::shared_ptr<std::ofstream> box_trajectory_stream;
+	std::shared_ptr<std::ofstream> vr_events_stream, box_trajectory_stream, controller_trajectory_stream;
 	std::string vr_events_record_path;
 	bool log_vr_events;
-	unsigned grab_number[4];
+	int grab_number[4];
 	std::chrono::time_point<std::chrono::steady_clock> vrr_t_start; //time since start of recording
 
 	//settings for live editing boxes
