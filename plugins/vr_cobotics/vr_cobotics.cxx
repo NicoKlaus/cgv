@@ -18,6 +18,11 @@
 
 #include "intersection.h"
 
+template <typename T>
+double time_stamp(const T& t_start) {
+	auto now = std::chrono::steady_clock::now();
+	return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - t_start).count()) / 1e6;
+}
 
 void vr_cobotics::init_cameras(vr::vr_kit* kit_ptr)
 {
@@ -265,7 +270,9 @@ vr_cobotics::vr_cobotics()
 	srs.radius = 0.005f;
 
 	vr_events_stream = nullptr;
+	box_trajectory_stream = nullptr;
 	box_edit_mode = true;
+	for (auto& a : grab_number) a = 0;
 	new_box = box3(vec3(-0.05f), vec3(0.05f));
 	new_box_color = rgb(88.f / 255.f, 24.f / 255.f, 69.f / 255.f);
 	edit_box_selected_axis = 0;
@@ -332,12 +339,13 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 	if ((e.get_flags() & cgv::gui::EF_VR) == 0)
 		return false;
 
-	// record event
+	// record controller events
 	if (log_vr_events && vr_events_stream) {
 		auto now = std::chrono::steady_clock::now();
-		double t = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - vrr_t_start).count()) / 1e6;
-		*vr_events_stream << t << " \"";
-		e.stream_out(*vr_events_stream);
+		double t = time_stamp(vrr_t_start);
+		//double t = static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(now - vrr_t_start).count()) / 1e6;
+		*vr_events_stream << t << " \""; //timestamp
+		e.stream_out(*vr_events_stream); //raw data
 		*vr_events_stream << "\"\n";
 	}
 
@@ -467,8 +475,10 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 				state[vrse.get_controller_index()] = IS_GRAB;
 			break;
 		case cgv::gui::SA_RELEASE:
-			if (state[vrse.get_controller_index()] == IS_GRAB)
+			if (state[vrse.get_controller_index()] == IS_GRAB) {
 				state[vrse.get_controller_index()] = IS_OVER;
+				++grab_number[vrse.get_controller_index()];
+			}
 			break;
 		case cgv::gui::SA_PRESS:
 		case cgv::gui::SA_UNPRESS:
@@ -520,6 +530,11 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					movable_box_rotations[bi] = quat(rotation) * movable_box_rotations[bi];
 					// update intersection points
 					intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
+
+					if (log_vr_events && box_trajectory_stream) {
+						//<box-index> <grab-id> <controller-id> <box-translation> <box-rotation>
+						*box_trajectory_stream << bi << " " << grab_number[ci] << " " << ci << " " << movable_box_rotations[bi] << " " << movable_box_translations[bi] << '\n';
+					}
 				}
 			}
 			else {// not grab
@@ -1231,12 +1246,13 @@ void vr_cobotics::on_load_wireframe_boxes_cb()
 
 void vr_cobotics::on_set_vr_event_streaming_file()
 {
-	std::string fn = cgv::gui::file_save_dialog("base file name", "VR-Conntroller Record(.vrcr):*.vrcr"); //VR-Conntroller Record
+	std::string fn = cgv::gui::file_save_dialog("base file name", "File Prefix"); //VR-Conntroller Record
 	if (fn.empty())
 		return;
 	vr_events_record_path = fn;
 
-	vr_events_stream = std::make_shared<std::ofstream>(fn);
+	vr_events_stream = std::make_shared<std::ofstream>(fn+".vrcr"); //VR Conntroller Record(.vrcr) :*.vrcr
+	box_trajectory_stream = std::make_shared<std::ofstream>(fn + ".btrj"); //Block trajectory : *.btrj
 	if (!vr_events_stream->good()) {
 		std::cerr << "vr_cobotics::on_set_vr_event_streaming_file: can't write file!\n";
 		vr_events_stream = nullptr;
