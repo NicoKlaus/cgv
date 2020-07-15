@@ -31,6 +31,26 @@ bool hasEnding(std::string const &str, std::string const &ending) {
 	return false;
 }
 
+void vr_cobotics::change_box_extents(Axis axis,int ci) {
+	for (size_t i = 0; i < intersection_points.size(); ++i) {
+		if (intersection_controller_indices[i] != ci)
+			continue;
+		// extract box index
+		int bi = intersection_box_indices[i];
+		box3 b = movable_boxes[bi];
+		float extent = b.get_max_pnt()[axis] - b.get_min_pnt()[axis];
+		float center = b.get_center()[axis];
+
+		const float size_limit = 0.5;
+		float new_extent = std::max(std::fmod(extent + edit_box_step, size_limit), edit_box_step);
+		movable_boxes[bi].ref_max_pnt()[axis] = center + new_extent * 0.5f;
+		movable_boxes[bi].ref_min_pnt()[axis] = center - new_extent * 0.5f;
+		// update intersection points
+		//intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
+		break; //change only the first box
+	}
+}
+
 void vr_cobotics::init_cameras(vr::vr_kit* kit_ptr)
 {
 	vr::vr_camera* camera_ptr = kit_ptr->get_camera();
@@ -371,35 +391,18 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			case vr::VR_LEFT_BUTTON1:
 				std::cout << "button 1 of left controller pressed" << std::endl;
 			case vr::VR_RIGHT_BUTTON1:
-			if (box_edit_mode){
-				//create a new box
-				int ci = vrke.get_controller_index();
-				if (state[ci] == IS_NONE || state[ci] == IS_OVER) {
-					const vec3 up = vec3(0.f, 1.f, 0.f);
-					vec3 origin, direction;
-					vrke.get_state().controller[ci].put_ray(&origin(0), &direction(0));
-					movable_box_colors.emplace_back(new_box_color);
-					movable_box_rotations.emplace_back(quat(cross(up, direction), acos(dot(up, direction))));
-					movable_box_translations.emplace_back(origin + direction * new_box_distance);
-					movable_boxes.emplace_back(new_box);
-					post_redraw();
-				}
-				else if (state[ci] == IS_GRAB) {
-					edit_box_selected_axis = (edit_box_selected_axis + 1) % 3;
-				}
 				return true;
-			}
 			case vr::VR_LEFT_BUTTON2:
 				std::cout << "button 2 of left controller pressed" << std::endl;
 			case vr::VR_RIGHT_BUTTON2:
 				return true;
-			case vr::VR_LEFT_BUTTON3:
-				std::cout << "button 3 of left controller pressed" << std::endl;
-			case vr::VR_RIGHT_BUTTON3:
+			case vr::VR_LEFT_BUTTON0:
+				std::cout << "button 0 of left controller pressed" << std::endl;
+			case vr::VR_RIGHT_BUTTON0:
 			{
 				//set grabed box as template for new boxes
 				int ci = vrke.get_controller_index();
-				if (box_edit_mode && (state[ci] == IS_OVER || state[ci] == IS_GRAB)) {
+				if (box_edit_mode && state[ci] == IS_OVER) {
 					// iterate intersection points of current controller
 					for (size_t i = 0; i < intersection_points.size(); ++i) {
 						if (intersection_controller_indices[i] != ci)
@@ -442,30 +445,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			case vr::VR_LEFT_BUTTON0:
 				std::cout << "button 0 of left controller released" << std::endl;
 			case vr::VR_RIGHT_BUTTON0:
-				//change box extents
-				int ci = vrke.get_controller_index();
-				if (box_edit_mode && state[ci] == IS_GRAB) {
-					// iterate intersection points of current controller
-					for (size_t i = 0; i < intersection_points.size(); ++i) {
-						if (intersection_controller_indices[i] != ci)
-							continue;
-						// extract box index
-						int bi = intersection_box_indices[i];
-						int axis = edit_box_selected_axis;
-						box3 b = movable_boxes[bi];
-						float extent = b.get_max_pnt()[axis] - b.get_min_pnt()[axis];
-						float center = b.get_center()[axis];
 
-						const float size_limit = 0.5;
-						float new_extent = std::max(std::fmod(extent + edit_box_step,size_limit), edit_box_step);
-						movable_boxes[bi].ref_max_pnt()[axis] = center + new_extent * 0.5f;
-						movable_boxes[bi].ref_min_pnt()[axis] = center - new_extent * 0.5f;
-						// update intersection points
-						//intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
-						break; //change only the first box
-					}
-					post_redraw();
-				}
 				return true;
 			}
 		}
@@ -476,6 +456,26 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 		cgv::gui::vr_throttle_event& vrte = static_cast<cgv::gui::vr_throttle_event&>(e);
 		std::cout << "throttle " << vrte.get_throttle_index() << " of controller " << vrte.get_controller_index()
 			<< " adjusted from " << vrte.get_last_value() << " to " << vrte.get_value() << std::endl;
+		if (vrte.get_value() == 1.0f) {
+			if (box_edit_mode) {
+				//create a new box
+				int ci = vrte.get_controller_index();
+				if (state[ci] == IS_NONE || state[ci] == IS_OVER) {
+					const vec3 up = vec3(0.f, 1.f, 0.f);
+					vec3 origin, direction;
+					vrte.get_state().controller[ci].put_ray(&origin(0), &direction(0));
+					movable_box_colors.emplace_back(new_box_color);
+					movable_box_rotations.emplace_back(quat(cross(up, direction), acos(dot(up, direction))));
+					movable_box_translations.emplace_back(origin + direction * new_box_distance);
+					movable_boxes.emplace_back(new_box);
+					post_redraw();
+				}
+				else if (state[ci] == IS_GRAB) {
+					edit_box_selected_axis = (edit_box_selected_axis + 1) % 3;
+				}
+				return true;
+			}
+		}
 		return true;
 	}
 	case cgv::gui::EID_STICK:
@@ -493,6 +493,27 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			}
 			break;
 		case cgv::gui::SA_PRESS:
+		{
+			int ci = vrse.get_controller_index();
+			if (box_edit_mode && vrse.get_x() < -0.5f && state[ci] == IS_GRAB) {
+				//change box extents
+				change_box_extents(AXIS_X, ci);
+				post_redraw();
+				return true;
+			}
+			if (box_edit_mode && vrse.get_y() < -0.5f && state[ci] == IS_GRAB) {
+				//change box extents
+				change_box_extents(AXIS_Y, ci);
+				post_redraw();
+				return true;
+			}
+			if (box_edit_mode && vrse.get_x() > 0.5f && state[ci] == IS_GRAB) {
+				//change box extents
+				change_box_extents(AXIS_Z, ci);
+				post_redraw();
+				return true;
+			}
+		}
 		case cgv::gui::SA_UNPRESS:
 			std::cout << "stick " << vrse.get_stick_index()
 				<< " of controller " << vrse.get_controller_index()
@@ -1170,7 +1191,7 @@ bool vr_cobotics::save_boxes(const std::string fn, const std::vector<box3>& boxe
 		return false;
 	}
 
-	for (int i = 0; i < movable_boxes.size(); ++i) {
+	for (size_t i = 0; i < movable_boxes.size(); ++i) {
 		//format: BOX <box.min_p> <box.max_p> <trans> <rot> <col>
 		const vec3& box_translation = box_translations[i];
 		const quat& box_rotation = box_rotations[i];

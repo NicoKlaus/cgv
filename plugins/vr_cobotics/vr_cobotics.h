@@ -38,6 +38,12 @@ protected:
 		IS_GRAB
 	};
 
+	enum Axis {
+		AXIS_X = 0,
+		AXIS_Y = 1,
+		AXIS_Z = 2
+	};
+
 	// store the scene as colored boxes
 	std::vector<box3> boxes;
 	std::vector<rgb> box_colors;
@@ -217,6 +223,8 @@ public:
 	void clear_movable_boxes();
 	void clear_frame_boxes();
 	void on_set_vr_event_streaming_file();
+
+	void change_box_extents(Axis axis,int ci);
 
 };
 
