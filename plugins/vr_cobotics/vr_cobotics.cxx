@@ -426,7 +426,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 			{
 				//set grabed box as template for new boxes
 				int ci = vrke.get_controller_index();
-				if (box_edit_mode && state[ci] == IS_OVER) {
+				if (box_edit_mode && state[ci] == IS_OVER || state[ci] == IS_GRAB) {
 					// iterate intersection points of current controller
 					for (size_t i = 0; i < intersection_points.size(); ++i) {
 						if (intersection_controller_indices[i] != ci)
@@ -754,9 +754,10 @@ void vr_cobotics::init_frame(cgv::render::context& ctx)
 			
 			if (box_edit_mode) {
 				const char axis[] = "XYZ";
-				ctx.output_stream() << "new box[B1] \nextent=" << new_box.get_extent() << "\ncolor=" << new_box_color << '\n';
-				ctx.output_stream() << "selected extent axis[GRAB + B1] "<< axis[edit_box_selected_axis] << '\n';
-				ctx.output_stream() << "set as new box template[B4]\n";
+				ctx.output_stream() << "new box[Trigger] \nextent=" << new_box.get_extent() << "\ncolor=" << new_box_color << '\n';
+				ctx.output_stream() << "set as box template[Grip Button]\n";
+				ctx.output_stream() << "delete box[trackpad up]\n";
+				ctx.output_stream() << "change box extents[trackpad left,right,down]\n";
 			}
 			
 			for (size_t i = 0; i < intersection_points.size(); ++i) {
