@@ -225,7 +225,8 @@ public:
 	void on_set_vr_event_streaming_file();
 
 	void change_box_extents(Axis axis,int ci);
-
+	void delete_box(int bi);
+	size_t clear_intersections(int ci);
 };
 
 ///@}

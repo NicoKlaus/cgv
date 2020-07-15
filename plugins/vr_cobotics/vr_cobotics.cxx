@@ -51,6 +51,30 @@ void vr_cobotics::change_box_extents(Axis axis,int ci) {
 	}
 }
 
+void vr_cobotics::delete_box(int bi)
+{
+	movable_boxes.erase(movable_boxes.begin() + bi);
+	movable_box_colors.erase(movable_box_colors.begin() + bi);
+	movable_box_translations.erase(movable_box_translations.begin() + bi);
+	movable_box_rotations.erase(movable_box_rotations.begin() + bi);
+}
+
+size_t vr_cobotics::clear_intersections(int ci)
+{
+	size_t i = 0;
+	while (i < intersection_points.size()) {
+		if (intersection_controller_indices[i] == ci) {
+			intersection_points.erase(intersection_points.begin() + i);
+			intersection_colors.erase(intersection_colors.begin() + i);
+			intersection_box_indices.erase(intersection_box_indices.begin() + i);
+			intersection_controller_indices.erase(intersection_controller_indices.begin() + i);
+		}
+		else
+			++i;
+	}
+	return i;
+}
+
 void vr_cobotics::init_cameras(vr::vr_kit* kit_ptr)
 {
 	vr::vr_camera* camera_ptr = kit_ptr->get_camera();
@@ -513,6 +537,36 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 				post_redraw();
 				return true;
 			}
+			if (box_edit_mode && vrse.get_y() > 0.5f && state[ci] == IS_GRAB) {
+				//TODO delete box
+				
+				for (size_t i = 0; i < intersection_points.size(); ++i) {
+					if (intersection_controller_indices[i] != ci)
+						continue;
+					// extract box index
+					delete_box(intersection_box_indices[i]);
+					break; //delete only the first box
+				}
+				// clear intersections of current controller 
+				size_t i = clear_intersections(ci);
+				// compute intersections
+				vec3 origin, direction;
+				vrse.get_state().controller[ci].put_ray(&origin(0), &direction(0));
+				compute_intersections(origin, direction, ci, ci == 0 ? rgb(1, 0, 0) : rgb(0, 0, 1));
+				label_outofdate = true;
+
+
+				// update state based on whether we have found at least 
+				// one intersection with controller ray
+				if (intersection_points.size() == i)
+					state[ci] = IS_NONE;
+				else
+					if (state[ci] == IS_NONE)
+						state[ci] = IS_OVER;
+
+				post_redraw();
+				return true;
+			}
 		}
 		case cgv::gui::SA_UNPRESS:
 			std::cout << "stick " << vrse.get_stick_index()
@@ -577,18 +631,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 				}
 			}
 			else {// not grab
-				// clear intersections of current controller 
-				size_t i = 0;
-				while (i < intersection_points.size()) {
-					if (intersection_controller_indices[i] == ci) {
-						intersection_points.erase(intersection_points.begin() + i);
-						intersection_colors.erase(intersection_colors.begin() + i);
-						intersection_box_indices.erase(intersection_box_indices.begin() + i);
-						intersection_controller_indices.erase(intersection_controller_indices.begin() + i);
-					}
-					else
-						++i;
-				}
+				size_t i = clear_intersections(ci);
 
 				// compute intersections
 				vec3 origin, direction;
