@@ -753,7 +753,6 @@ void vr_cobotics::init_frame(cgv::render::context& ctx)
 			ctx.enable_font_face(label_font_face, 0.7f*label_size);
 			
 			if (box_edit_mode) {
-				const char axis[] = "XYZ";
 				ctx.output_stream() << "new box[Trigger] \nextent=" << new_box.get_extent() << "\ncolor=" << new_box_color << '\n';
 				ctx.output_stream() << "set as box template[Grip Button]\n";
 				ctx.output_stream() << "delete box[trackpad up]\n";
