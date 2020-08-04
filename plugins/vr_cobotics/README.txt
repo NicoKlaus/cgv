@@ -12,8 +12,11 @@ delete boxes by pressing up on the trackpad.
 
 ### Log files ###
 
+log entries found in multiple files types
+
 controller-id: 	identifies controller
 grab-number:	identifies grab operation, is counted for every controller individualy
+time:			time since start in milliseconds		
 				
 the grab number increases only after releasing a box from a grab
 thus entries with the same combination of grab-number and controller-id refer to the same 
@@ -23,6 +26,9 @@ cycle of grabing a box, moving it and finally releasing the box
 
 btrj file format:
 <controller-id> <grab-number> <time> <box-index> <box-translation> <box-orientation>
+
+box-translation: 3d cartesian coordinates of the boxes center
+box-orientation: rotation applied to the box as quaternion
 
 # Controller trajectory #
 The controller trajectory is stored as a series of three dimensional cartesian coordinates.

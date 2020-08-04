@@ -31,6 +31,14 @@ bool hasEnding(std::string const &str, std::string const &ending) {
 	return false;
 }
 
+template <typename T>
+T snapToGrid(T p,const float grid) {
+	for (int i = 0; i < T::size(); ++i) {
+		p[i] = round(p[i] / grid)*grid;
+	}
+	return p;
+}
+
 void vr_cobotics::change_box_extents(Axis axis,int ci) {
 	for (size_t i = 0; i < intersection_points.size(); ++i) {
 		if (intersection_controller_indices[i] != ci)
@@ -331,6 +339,8 @@ vr_cobotics::vr_cobotics()
 	edit_box_step = 0.025f;
 	edit_box_max_size = 0.2f;
 	new_box_distance = 0.35f;
+	grid_lock = false;
+	grid_step = 0.025f;
 
 	label_outofdate = true;
 	label_text = "Info Board";
@@ -1160,6 +1170,8 @@ void vr_cobotics::create_gui() {
 		add_member_control(this, "allow editing/creating boxes", box_edit_mode, "toggle");
 		add_member_control(this, "max. box size", edit_box_max_size, "value_slider", "min=0;max=1;ticks=true");
 		add_member_control(this, "edit step ize", edit_box_step, "value_slider", "min=0;max=1;ticks=true");
+		add_member_control(this, "lock to grid", grid_lock, "toggle");
+		add_member_control(this, "grid step size", grid_step, "value_slider", "min=0.01;max=0.2;ticks=true");
 		end_tree_node(box_edit_mode);
 		align("\b");
 	}
@@ -1350,8 +1362,11 @@ void vr_cobotics::on_set_vr_event_streaming_file()
 	vr_events_record_path = fn;
 
 	vr_events_stream = std::make_shared<std::ofstream>(fn+".vrcr"); //VR Conntroller Record(.vrcr) :*.vrcr
+	vr_events_stream->precision(std::numeric_limits<double>::max_digits10);
 	box_trajectory_stream = std::make_shared<std::ofstream>(fn + ".btrj"); //Block trajectory : *.btrj
+	box_trajectory_stream->precision(std::numeric_limits<double>::max_digits10);
 	controller_trajectory_stream = std::make_shared<std::ofstream>(fn + ".ctrj"); //controller trajectory : *.ctrj
+	controller_trajectory_stream->precision(std::numeric_limits<double>::max_digits10);
 	if (!vr_events_stream->good()) {
 		std::cerr << "vr_cobotics::on_set_vr_event_streaming_file: can't write file!\n";
 		vr_events_stream = nullptr;

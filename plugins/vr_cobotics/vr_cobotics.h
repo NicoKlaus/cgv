@@ -108,6 +108,8 @@ protected:
 	float edit_box_step;
 	float edit_box_max_size;
 	int edit_box_selected_axis;
+	float grid_step;
+	bool grid_lock;
 
 	// store the movable boxes
 	std::vector<box3> movable_boxes;
