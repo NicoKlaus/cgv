@@ -109,6 +109,7 @@ protected:
 	float edit_box_max_size;
 	int edit_box_selected_axis;
 	float grid_step;
+	float rotation_grid_step;
 	bool grid_lock;
 
 	// store the movable boxes

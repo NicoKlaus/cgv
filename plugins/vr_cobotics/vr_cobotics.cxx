@@ -18,6 +18,8 @@
 
 #include "intersection.h"
 
+#define M_PI           3.14159265358979323846
+
 template <typename T>
 double time_stamp(const T& t_start) {
 	auto now = std::chrono::steady_clock::now();
@@ -37,6 +39,36 @@ T snapToGrid(T p,const float grid) {
 		p[i] = round(p[i] / grid)*grid;
 	}
 	return p;
+}
+
+template <>
+float snapToGrid<float>(float p, const float grid) {
+	return round(p / grid)*grid;
+}
+
+cgv::render::render_types::vec4 quatToAxisAngle(const cgv::render::render_types::quat q) {
+	typedef  cgv::render::render_types::vec4 vec4;
+	float div = sqrt(1.f - q.w() * q.w());
+	if (div == 0.f) {
+		return vec4(1, 0, 0, 0);
+	}
+	return vec4(
+		q.x() / div,
+		q.y() / div,
+		q.z() / div,
+		2.f*acos(q.w())
+	);
+}
+
+cgv::render::render_types::quat axisAngleToQuat(const cgv::render::render_types::vec4 aa) {
+	typedef  cgv::render::render_types::quat quat;
+	float s = sin(aa.w() * 0.5f);
+	return quat(
+		cos(aa.w() * 0.5f),
+		aa.x() * s,
+		aa.y() * s,
+		aa.z() * s
+	);
 }
 
 void vr_cobotics::change_box_extents(Axis axis,int ci) {
@@ -347,6 +379,7 @@ vr_cobotics::vr_cobotics()
 	new_box_distance = 0.35f;
 	grid_lock = false;
 	grid_step = 0.025f;
+	rotation_grid_step = 0.5;
 
 	label_outofdate = true;
 	label_text = "Info Board";
@@ -624,23 +657,30 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 						continue;
 					// extract box index
 					unsigned bi = intersection_box_indices[i];
-					// update translation with position change and rotation
+					
 					if (grid_lock) {
 						if (intersection_grab_initialized[i] == 0) {
 							intersection_grab_translations[i] = movable_box_translations[bi];
+							intersection_grab_rotations[i] = movable_box_rotations[bi];
 							intersection_grab_initialized[i] = 1;
 						}
 						intersection_grab_translations[i] = rotation * (intersection_grab_translations[i] - last_pos) + pos;
 						movable_box_translations[bi] = snapToGrid(intersection_grab_translations[i], grid_step);
+						intersection_grab_rotations[i] = quat(rotation) * intersection_grab_rotations[i];
+						vec4 r = quatToAxisAngle(intersection_grab_rotations[i]);
+						vec3 ax = snapToGrid(vec3(r.x(), r.y(), r.z()),rotation_grid_step);
+						float angle = snapToGrid(r.w(), M_PI/8.f); //TODO add slider to for this
+						movable_box_rotations[bi] = axisAngleToQuat(vec4(ax.x(), ax.y(), ax.z(), angle));
 					}
 					else {
+						// update translation with position change and rotation
 						movable_box_translations[bi] = rotation * (movable_box_translations[bi] - last_pos) + pos;
+						// update orientation with rotation, note that quaternions
+						// need to be multiplied in oposite order. In case of matrices
+						// one would write box_orientation_matrix *= rotation
+						movable_box_rotations[bi] = quat(rotation) * movable_box_rotations[bi];
 					}
-					// update orientation with rotation, note that quaternions
-					// need to be multiplied in oposite order. In case of matrices
-					// one would write box_orientation_matrix *= rotation
-					movable_box_rotations[bi] = quat(rotation) * movable_box_rotations[bi];
-					intersection_grab_rotations[i] = movable_box_rotations[bi];
+
 					// update intersection points
 					intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
 
@@ -1188,6 +1228,7 @@ void vr_cobotics::create_gui() {
 		add_member_control(this, "edit step ize", edit_box_step, "value_slider", "min=0;max=1;ticks=true");
 		add_member_control(this, "lock to grid", grid_lock, "toggle");
 		add_member_control(this, "grid step size", grid_step, "value_slider", "min=0.01;max=0.2;ticks=true");
+		add_member_control(this, "rotation grid step", rotation_grid_step, "value_slider", "min=0.01;max=0.5;ticks=true");
 		end_tree_node(box_edit_mode);
 		align("\b");
 	}
