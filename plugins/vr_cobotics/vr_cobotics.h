@@ -128,6 +128,9 @@ protected:
 	std::vector<rgb>  intersection_colors;
 	std::vector<int>  intersection_box_indices;
 	std::vector<int>  intersection_controller_indices;
+	std::vector<vec3> intersection_grab_translations;
+	std::vector<quat> intersection_grab_rotations;
+	std::vector<char> intersection_grab_initialized;
 
 	// state of current interaction with boxes for each controller
 	InteractionState state[4];

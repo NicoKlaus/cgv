@@ -76,6 +76,9 @@ size_t vr_cobotics::clear_intersections(int ci)
 			intersection_colors.erase(intersection_colors.begin() + i);
 			intersection_box_indices.erase(intersection_box_indices.begin() + i);
 			intersection_controller_indices.erase(intersection_controller_indices.begin() + i);
+			intersection_grab_translations.erase(intersection_grab_translations.begin() + i);
+			intersection_grab_rotations.erase(intersection_grab_rotations.begin() + i);
+			intersection_grab_initialized.erase(intersection_grab_initialized.begin() + i);
 		}
 		else
 			++i;
@@ -163,6 +166,9 @@ void vr_cobotics::compute_intersections(const vec3& origin, const vec3& directio
 			intersection_colors.push_back(color);
 			intersection_box_indices.push_back((int)i);
 			intersection_controller_indices.push_back(ci);
+			intersection_grab_initialized.push_back(0); //TODO remove intersection_grab_initialized vector
+			intersection_grab_rotations.emplace_back();
+			intersection_grab_translations.emplace_back();
 		}
 	}
 }
@@ -619,12 +625,22 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 					// extract box index
 					unsigned bi = intersection_box_indices[i];
 					// update translation with position change and rotation
-					movable_box_translations[bi] = 
-						rotation * (movable_box_translations[bi] - last_pos) + pos;
+					if (grid_lock) {
+						if (intersection_grab_initialized[i] == 0) {
+							intersection_grab_translations[i] = movable_box_translations[bi];
+							intersection_grab_initialized[i] = 1;
+						}
+						intersection_grab_translations[i] = rotation * (intersection_grab_translations[i] - last_pos) + pos;
+						movable_box_translations[bi] = snapToGrid(intersection_grab_translations[i], grid_step);
+					}
+					else {
+						movable_box_translations[bi] = rotation * (movable_box_translations[bi] - last_pos) + pos;
+					}
 					// update orientation with rotation, note that quaternions
 					// need to be multiplied in oposite order. In case of matrices
 					// one would write box_orientation_matrix *= rotation
 					movable_box_rotations[bi] = quat(rotation) * movable_box_rotations[bi];
+					intersection_grab_rotations[i] = movable_box_rotations[bi];
 					// update intersection points
 					intersection_points[i] = rotation * (intersection_points[i] - last_pos) + pos;
 
