@@ -671,6 +671,7 @@ bool vr_cobotics::handle(cgv::gui::event& e)
 						vec3 ax = snapToGrid(vec3(r.x(), r.y(), r.z()),rotation_grid_step);
 						float angle = snapToGrid(r.w(), M_PI/8.f); //TODO add slider to for this
 						movable_box_rotations[bi] = axisAngleToQuat(vec4(ax.x(), ax.y(), ax.z(), angle));
+						movable_box_rotations[bi].normalize();
 					}
 					else {
 						// update translation with position change and rotation
