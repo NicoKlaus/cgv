@@ -1071,22 +1071,28 @@ void vr_cobotics::draw(cgv::render::context& ctx)
 	}
 
 	// draw dynamic boxes 
-	renderer.set_render_style(movable_style);
-	renderer.set_box_array(ctx, movable_boxes);
-	renderer.set_color_array(ctx, movable_box_colors);
-	renderer.set_translation_array(ctx, movable_box_translations);
-	renderer.set_rotation_array(ctx, movable_box_rotations);
-	if (renderer.validate_and_enable(ctx)) {
-		if (show_seethrough) {
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			renderer.draw(ctx, 0, 3);
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-			renderer.draw(ctx, 3, movable_boxes.size() - 3);
+#ifdef _DEBUG
+	if (movable_boxes.size() > 0) { //check size to prevent crashes in debug mode
+#endif //_DEBUG
+		renderer.set_render_style(movable_style);
+		renderer.set_box_array(ctx, movable_boxes);
+		renderer.set_color_array(ctx, movable_box_colors);
+		renderer.set_translation_array(ctx, movable_box_translations);
+		renderer.set_rotation_array(ctx, movable_box_rotations);
+		if (renderer.validate_and_enable(ctx)) {
+			if (show_seethrough) {
+				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+				renderer.draw(ctx, 0, 3);
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				renderer.draw(ctx, 3, movable_boxes.size() - 3);
+			}
+			else
+				renderer.draw(ctx, 0, movable_boxes.size());
 		}
-		else
-			renderer.draw(ctx, 0, movable_boxes.size());
+		renderer.disable(ctx);
+#ifdef _DEBUG
 	}
-	renderer.disable(ctx);
+#endif //_DEBUG
 
 	// draw static boxes
 	renderer.set_render_style(style);
