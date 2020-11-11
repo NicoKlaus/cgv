@@ -271,6 +271,11 @@ namespace cgv {
 						}
 					}
 			}
+
+			//write log
+			if (log && !(new_state == last_state)) {
+				log->log_vr_state(last_state);
+			}
 			last_state = new_state;
 		}
 
@@ -352,6 +357,21 @@ namespace cgv {
 					return false;
 			}
 			return on_event(e);
+		}
+		void vr_server::enable_logging(std::ostream&& os, bool in_memory_log, int filter)
+		{
+			this->log = std::make_unique<vr::vr_state_log>();
+			this->log->enable_ostream_log(std::move(os));
+			if (in_memory_log)
+				this->log->enable_in_memory_log();
+		}
+		void vr_server::disable_logging()
+		{
+			this->log->disable_log();
+		}
+		vr::vr_state_log& vr_server::ref_log()
+		{
+			return *log;
 		}
 		/// return a reference to gamepad server singleton
 		vr_server& ref_vr_server()
