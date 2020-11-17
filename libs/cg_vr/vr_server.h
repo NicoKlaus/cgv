@@ -188,7 +188,7 @@ namespace cgv {
 			void enable_logging(std::string fn, bool in_memory_log = true, int filter=vr::vr_state_log::F_ALL);
 			/// disable logging and flush buffers
 			void disable_logging();
-			/// return a reference to the used log
+			/// return a reference to the used vr_state_log object
 			vr::vr_state_log& ref_log();
 		};
 

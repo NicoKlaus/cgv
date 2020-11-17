@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <ostream>
+#include <sstream>
 
 #include <libs/vr/vr_state.h>
 #include "vr_driver.h"
@@ -11,7 +12,8 @@
 
 namespace vr {
 	//! helper struct for logging vr events
-	struct CGV_API vr_state_log : public cgv::render::render_types {
+	class CGV_API vr_state_log : public cgv::render::render_types {
+	public:
 		template<class T>
 		using container = std::vector<T, std::allocator<T>>;
 		using vec8 = cgv::math::fvec<float, 8>;
@@ -31,12 +33,6 @@ namespace vr {
 			F_ALL = 31
 		};
 
-	private:
-		bool setting_locked = false;
-		std::ostream* log_stream;
-		int log_storage_mode = SM_NONE;
-		int filters = 0;
-	public:
 		//hmd state
 		container<mat34> hmd_pose;
 		container<double> hmd_time_stamp;
@@ -48,36 +44,45 @@ namespace vr {
 		container<vec2> controller_vibration;
 		container<unsigned> controller_button_flags;
 
+	private:
+		bool setting_locked = false;
+		int log_storage_mode = SM_NONE;
+		int filters = 0;
+
 	protected:
-		void log_vr_state(const vr::vr_kit_state& state, const int mode, const int filter, const double time);
+		void log_vr_state(const vr::vr_kit_state& state, const int mode, const int filter, const double time, std::ostream* log_stream);
+		void load_state(std::istringstream& is, const char terminator = '\0');
 	public:
-		inline void log_vr_state(const vr::vr_kit_state& state, const double& time) {
-			log_vr_state(state, log_storage_mode, filters, time);
+		vr_state_log() = default;
+		//construct log from stream
+		vr_state_log(std::istringstream& is, const char terminator='\0');
+
+		//! write vr_kit_state to log , and stream serialized vr_kit_state to log_stream if ostream_log is enabled
+		inline void log_vr_state(const vr::vr_kit_state& state, const double& time, std::ostream* log_stream = nullptr) {
+			log_vr_state(state, log_storage_mode, filters, time, log_stream);
 		}
-		// close streams and disable in memory logging
+		//! disable logging
 		void disable_log();
-		/// enable in memory log
+		//! enable in memory log
 		inline void enable_in_memory_log() {
 			if (!setting_locked)
 				log_storage_mode = log_storage_mode | SM_IN_MEMORY;
 		}
 
-		/// enable writing to provided ostream. disable_log must be used before deleting the given ostream object
-		inline void enable_ostream_log(std::ostream& os) {
-			if (setting_locked)
-				return;
-			log_storage_mode = log_storage_mode | SM_OSTREAM;
-			log_stream = &os;
+		//! enable writing to ostream.
+		inline void enable_ostream_log() {
+			if (!setting_locked)
+				log_storage_mode = log_storage_mode | SM_OSTREAM;
 		}
 		inline void set_filter(int f) {
 			if (setting_locked)
 				return;
 			filters = f;
 		}
-		/// prevent changes to settings and enables log_vr_state methods
+		//! prevent changes to settings and enables log_vr_state methods
 		inline void lock_settings() {
 			setting_locked = true;
-		}
+		}		
 	};
 }
 

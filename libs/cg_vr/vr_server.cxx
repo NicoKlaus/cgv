@@ -274,7 +274,7 @@ namespace cgv {
 
 			//write log
 			if (log && !(new_state == last_state)) {
-				log->log_vr_state(new_state,time);
+				log->log_vr_state(new_state,time, log_file.get());
 			}
 			last_state = new_state;
 		}
@@ -366,16 +366,20 @@ namespace cgv {
 				log_file = std::make_shared<std::ofstream>(fn);
 
 			this->log = std::make_unique<vr::vr_state_log>();
-			this->log->enable_ostream_log(*log_file);
+			this->log->enable_ostream_log();
 			if (in_memory_log)
 				this->log->enable_in_memory_log();
-			log->lock_settings();
+
+			this->log->set_filter(filter);
+			this->log->lock_settings();
 		}
 		void vr_server::disable_logging()
 		{
 			if (this->log)
 				this->log->disable_log();
+			log_file = nullptr;
 		}
+
 		vr::vr_state_log& vr_server::ref_log()
 		{
 			return *log;
