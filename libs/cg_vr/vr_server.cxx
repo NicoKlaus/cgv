@@ -365,7 +365,7 @@ namespace cgv {
 			if (fn.size() > 0)
 				log_file = std::make_shared<std::ofstream>(fn);
 
-			this->log = std::make_unique<vr::vr_state_log>();
+			this->log = std::make_unique<vr::vr_log>();
 			this->log->enable_ostream_log();
 			if (in_memory_log)
 				this->log->enable_in_memory_log();
@@ -380,7 +380,7 @@ namespace cgv {
 			log_file = nullptr;
 		}
 
-		vr::vr_state_log& vr_server::ref_log()
+		vr::vr_log& vr_server::ref_log()
 		{
 			return *log;
 		}

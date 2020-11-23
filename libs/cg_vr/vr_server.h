@@ -9,7 +9,7 @@
 #include <cgv/gui/window.h>
 #include <cgv/signal/signal.h>
 #include <cgv/signal/bool_signal.h>
-#include <vr/vr_state_log.h>
+#include <vr/vr_log.h>
 #include <fstream>
 
 #include "lib_begin.h"
@@ -145,7 +145,7 @@ namespace cgv {
 			VREventTypeFlags event_type_flags;
 			VRFocus focus_type;
 			event_handler* focus;
-			std::unique_ptr<vr::vr_state_log> log;
+			std::unique_ptr<vr::vr_log> log;
 			std::shared_ptr<std::ofstream> log_file;
 			///
 			void emit_events_and_update_state(void* kit_handle, const vr::vr_kit_state& new_state, int kit_index, VREventTypeFlags flags, double time);
@@ -185,11 +185,11 @@ namespace cgv {
 			/// signal emitted to notify about status changes of trackables, first argument is handle, second -1 for hmd + 0|1 for left|right controller, third is old status and fourth new status
 			cgv::signal::signal<void*, int, vr::VRStatus, vr::VRStatus> on_status_change;
 			/// activates logging
-			void enable_logging(std::string fn, bool in_memory_log = true, int filter=vr::vr_state_log::F_ALL);
+			void enable_logging(std::string fn, bool in_memory_log = true, int filter=vr::vr_log::F_ALL);
 			/// disable logging and flush buffers
 			void disable_logging();
-			/// return a reference to the used vr_state_log object
-			vr::vr_state_log& ref_log();
+			/// return a reference to the used vr_log object
+			vr::vr_log& ref_log();
 		};
 
 		/// return a reference to vr server singleton
