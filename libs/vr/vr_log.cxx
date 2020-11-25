@@ -11,20 +11,69 @@
 */
 
 
+const std::string filter_to_string(vr::vr_log::Filter f){
+	switch (f) {
+	case vr::vr_log::F_AXES:
+		return "AXES";
+	case vr::vr_log::F_BUTTON:
+		return "BUTTON";
+	case vr::vr_log::F_HMD:
+		return "HMD";
+	case vr::vr_log::F_POSE:
+		return "POSE";
+	case vr::vr_log::F_VIBRATION:
+		return "VIBRATION";
+	default:
+		return "UNKNOWN_FILTER";
+	}
+}
+
+const std::unordered_map<std::string, vr::vr_log::Filter> filter_map = {
+   {"AXES", vr::vr_log::F_AXES},
+   {"BUTTON", vr::vr_log::F_BUTTON},
+   {"HMD", vr::vr_log::F_HMD },
+   {"POSE", vr::vr_log::F_POSE},
+   {"VIBRATION", vr::vr_log::F_VIBRATION},
+   {"UNKNOWN_FILTER", vr::vr_log::F_NONE}
+};
+
+
+const vr::vr_log::Filter filter_from_string(const std::string& f) {
+	const auto it = filter_map.find(f);
+	if (it != filter_map.cend()) {
+		return (*it).second;
+	}
+	return vr::vr_log::F_NONE;
+}
+
+
 void vr::vr_log::disable_log()
 {
 	log_storage_mode = SM_NONE;
 }
 
-vr::vr_log::vr_log(std::istringstream& is, char terminator) {
-	load_state(is, terminator);
+void vr::vr_log::enable_in_memory_log()
+{
+	if (!setting_locked)
+		log_storage_mode = log_storage_mode | SM_IN_MEMORY;
+}
+
+void vr::vr_log::enable_ostream_log()
+{
+	if (!setting_locked)
+		log_storage_mode = log_storage_mode | SM_OSTREAM;
+}
+
+
+vr::vr_log::vr_log(std::istringstream& is) {
+	load_state(is);
 }
 
 void vr::vr_log::log_vr_state(const vr::vr_kit_state& state, const int mode, const int filter, const double time,std::ostream* log_stream)
 {
 	if (!setting_locked)
 		return;
-
+	++nr_vr_states;
 	//time stamp
 	if (mode & SM_IN_MEMORY) {
 		this->time_stamp.push_back(time);
@@ -99,62 +148,75 @@ void vr::vr_log::log_vr_state(const vr::vr_kit_state& state, const int mode, con
 	}
 }
 
-void  vr::vr_log::load_state(std::istringstream& is, const char terminator) {
-	typedef cgv::media::color<float, cgv::media::HLS> hls;
+template <typename T,unsigned SIZE>
+void parse_array(std::istringstream& line,T* storage) {
+	for (int i = 0; i < SIZE; ++i) {
+		line >> storage[i];
+	}
+}
 
-	std::string line;
-	int line_number = 0;
+unsigned parse_controller_state(std::istringstream& line, vr::vr_controller_state& state) {
+	unsigned filter = 0;
+	std::string cinfo_type;
+	line >> cinfo_type;
 
-	int prev_pose_index[2] = { -1,-1 };
-	int last_pose_index[2] = { -1,-1 };
+	if (cinfo_type == "P") {
+		filter |= vr::vr_log::F_POSE;
+			parse_array<float, 12>(line, state.pose);
 
+	}
+	return filter;
+}
+
+//returns active filters found
+unsigned parse_vr_kit_state(std::istringstream& line, vr::vr_kit_state& state,double& time) {
+	unsigned filter = 0;
+	while (!line.eof()) {
+		std::string type;
+		line >> time >> type;
+		if (type == "C") { //parse controller info
+			int cid = -1; //controller id
+			line >> cid;
+			if (cid > 0 && cid < 2)
+				filter |= parse_controller_state(line, state.controller[cid]);
+			else
+				throw std::string("invalid controller id");
+		}
+		else if (type == "H") { //parse hmd info
+			filter |= vr::vr_log::F_HMD;
+			parse_array<float, 12>(line, state.hmd.pose);
+		}
+	}
+	return 0;
+}
+
+
+bool vr::vr_log::load_state(std::istringstream& is) {
+	//log lines look like this: 
+	//	<timestamp> (C <controller_id>[P <pose>][B <button - mask>][A <axes - state>][V <vibration>])* [H <pose>]
+	if (setting_locked)
+		return false;
+	log_storage_mode = SM_IN_MEMORY;
+	set_filter(F_ALL);
+	lock_settings();
+	//write log
+	
 	try {
 		while (!is.eof()) {
-			std::getline(is, line); 	//read a line
+			std::string line;
+			std::getline(is, line);
 			std::istringstream l(line);
-			int32_t controller_id = -1, grab_id = -1;
-			double time_in_ms;
-			std::string event_type;
-			++line_number;
-
-			std::string type;
-			double time;
-
-			l >> type;
-			l >> time;
-
-			if (type == "C") { //is controller state
-				int controller_id;
-				std::string ctype;
-				l >> controller_id;
-				while (!l.eof()) {
-					l >> type;
-					if (type == "P") {
-						mat34 pose;
-						for (int j = 0; j < 4; ++j) {
-							for (int i = 0; i < 3; ++i) {
-								l >> pose(i, j);
-							}
-						}
-					}
-					else if (type == "A") {
-
-					}
-					else if (type == "B") {
-
-					}
-					else if (type == "V") {
-
-					}
-				}
-				
-			}
-			else if (type == "H") { //is head tracker
-
-			}
+			double time = -1;
+			vr::vr_kit_state state;
+			filters &= parse_vr_kit_state(l,state,time);
+			log_vr_state(state, time);
 		}
 	}
 	catch (std::string err) {
-		std::cerr << err << '\n' << "vr_log::load_log: failed parsing data from stream\n";
+		return false;
 	}
+
+	disable_log();
+	assert(false);
+	return false;
 }

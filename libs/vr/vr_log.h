@@ -30,28 +30,25 @@ namespace vr {
 			F_AXES = 4,
 			F_VIBRATION = 8,
 			F_HMD = 16,
-			F_ALL = 31
+			F_ALL = 31,
+			F_NONE = 0
 		};
 
-		//hmd state
-		container<mat34> hmd_pose;
 		container<double> time_stamp;
-		//container<double> hmd_time_stamp;
-		//controller states
-		
-		//container<double> controller_time_stamp;
-		//container<int8_t> controller_id;
+
+		container<mat34> hmd_pose;
+		container<uint8_t> hmd_status;
+
 		container<vec8> controller_axes[4];
 		container<mat34> controller_pose[4];
 		container<vec2> controller_vibration[4];
 		container<unsigned> controller_button_flags[4];
 		container<uint8_t> controller_status[4];
-		container<uint8_t> hmd_status;
-
 	private:
 		bool setting_locked = false;
 		int log_storage_mode = SM_NONE;
 		int filters = 0;
+		size_t nr_vr_states = 0; //number of recorded vr states
 
 		container<std::pair<unsigned, unsigned>> vr_states_ix;
 		unsigned vr_state_num = 0;
@@ -63,11 +60,11 @@ namespace vr {
 		//! record state
 		void log_vr_state(const vr::vr_kit_state& state, const int mode, const int filter, const double time, std::ostream* log_stream);
 		//! read log from stream
-		void load_state(std::istringstream& is, const char terminator = '\0');
+		bool load_state(std::istringstream& is);
 	public:
 		vr_log() = default;
 		//construct log from stream
-		vr_log(std::istringstream& is, const char terminator='\0');
+		vr_log(std::istringstream& is);
 
 		//! write vr_kit_state to log , and stream serialized vr_kit_state to log_stream if ostream_log is enabled
 		inline void log_vr_state(const vr::vr_kit_state& state, const double& time, std::ostream* log_stream = nullptr) {
@@ -76,16 +73,11 @@ namespace vr {
 		//! disable logging
 		void disable_log();
 		//! enable in memory log
-		inline void enable_in_memory_log() {
-			if (!setting_locked)
-				log_storage_mode = log_storage_mode | SM_IN_MEMORY;
-		}
+		void enable_in_memory_log();
 
 		//! enable writing to ostream.
-		inline void enable_ostream_log() {
-			if (!setting_locked)
-				log_storage_mode = log_storage_mode | SM_OSTREAM;
-		}
+		void enable_ostream_log();
+
 		inline void set_filter(int f) {
 			if (setting_locked)
 				return;
@@ -96,7 +88,9 @@ namespace vr {
 			setting_locked = true;
 		}
 
-		 
+		inline const size_t recorded_vr_states() const {
+			return nr_vr_states;
+		}
 	};
 }
 
